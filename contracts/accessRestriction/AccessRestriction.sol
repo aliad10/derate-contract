@@ -15,4 +15,8 @@ contract AccessRestriction is AccessControl, IAccessRestriction {
     function giveUserRole(address _to) external onlyRole(SCRIPT_ROLE) {
         _grantRole(USER_ROLE, _to);
     }
+
+    function isScript(address _account) external view returns (bool) {
+        return hasRole(SCRIPT_ROLE, _account);
+    }
 }

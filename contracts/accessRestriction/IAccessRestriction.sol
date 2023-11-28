@@ -5,4 +5,6 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 
 interface IAccessRestriction is IAccessControl {
     function giveUserRole(address _to) external;
+
+    function isScript(address _account) external view returns (bool);
 }
