@@ -8,7 +8,7 @@ import "./../accessRestriction/IAccessRestriction.sol";
 contract Rate is IRate {
     IAccessRestriction public accessRestriction;
     struct Service {
-        address submiter;
+        address submitter;
         string info;
         bool exists;
     }
@@ -28,13 +28,13 @@ contract Rate is IRate {
         );
     bytes32 public constant FEEDBACK_ON_FEEDBACK_TYPE_HASH =
         keccak256(
-            "feedbackToFeedback(uint256 nonce,string infoHash,string prevSubmiter,string serviceAddress)"
+            "feedbackToFeedback(uint256 nonce,string infoHash,string prevSubmitter,string serviceAddress)"
         );
 
     mapping(address => Service) public services;
-    mapping(address => mapping(address => Feedback)) public serviceFeedbacks; //submiter->service->data
+    mapping(address => mapping(address => Feedback)) public serviceFeedbacks; //submitter->service->data
     mapping(address => mapping(address => mapping(address => Feedback)))
-        public feedbackFeedbacks; // submiter->prevSubmiter->service->data
+        public feedbackFeedbacks; // submitter->prevSubmitter->service->data
 
     mapping(address => uint256) public serviceNonce;
     mapping(address => uint256) public feedbackNonce;
@@ -55,14 +55,14 @@ contract Rate is IRate {
 
     function addService(
         uint256 _nonce,
-        address _submiter,
+        address _submitter,
         address _service,
         string memory _infoHash,
         uint8 _v,
         bytes32 _r,
         bytes32 _s
     ) external override isScriptOnly(msg.sender) {
-        require(serviceNonce[_submiter] < _nonce, "nonce is incorrect");
+        require(serviceNonce[_submitter] < _nonce, "nonce is incorrect");
 
         _checkSigner(
             _buildDomainSeparator(),
@@ -74,7 +74,7 @@ contract Rate is IRate {
                     _service
                 )
             ),
-            _submiter,
+            _submitter,
             _v,
             _r,
             _s
@@ -83,24 +83,24 @@ contract Rate is IRate {
         Service storage serviceData = services[_service];
         require(serviceData.exists == false, "service already submited");
         serviceData.info = _infoHash;
-        serviceData.submiter = _submiter;
+        serviceData.submitter = _submitter;
         serviceData.exists = true;
 
-        serviceNonce[_submiter] = _nonce;
+        serviceNonce[_submitter] = _nonce;
 
-        emit ServiceAdded(_service, _submiter, _infoHash);
+        emit ServiceAdded(_service, _submitter, _infoHash);
     }
 
     function submitFeedbackToService(
         uint256 _nonce,
-        address _submiter,
+        address _submitter,
         address _service,
         string memory _infoHash,
         uint8 _v,
         bytes32 _r,
         bytes32 _s
     ) external override isScriptOnly(msg.sender) {
-        require(feedbackNonce[_submiter] < _nonce, "nonce is incorrect");
+        require(feedbackNonce[_submitter] < _nonce, "nonce is incorrect");
         _checkSigner(
             _buildDomainSeparator(),
             keccak256(
@@ -111,27 +111,27 @@ contract Rate is IRate {
                     _service
                 )
             ),
-            _submiter,
+            _submitter,
             _v,
             _r,
             _s
         );
 
-        Feedback storage feedbackData = serviceFeedbacks[_submiter][_service];
+        Feedback storage feedbackData = serviceFeedbacks[_submitter][_service];
 
         require(feedbackData.exists == false, "feedback already submited");
         feedbackData.info = _infoHash;
         feedbackData.exists = true;
 
-        feedbackNonce[_submiter] = _nonce;
+        feedbackNonce[_submitter] = _nonce;
 
-        emit FeedbackSubmited(_service, _submiter, _infoHash);
+        emit FeedbackSubmited(_service, _submitter, _infoHash);
     }
 
     function submitFeedbackToFeedback(
         uint256 _nonce,
-        address _prevSubmiter,
-        address _submiter,
+        address _prevSubmitter,
+        address _submitter,
         address _service,
         string memory _infoHash,
         uint8 _v,
@@ -139,7 +139,7 @@ contract Rate is IRate {
         bytes32 _s
     ) external override isScriptOnly(msg.sender) {
         require(
-            feedbackOnfeedbackNonce[_submiter] < _nonce,
+            feedbackOnfeedbackNonce[_submitter] < _nonce,
             "nonce is incorrect"
         );
 
@@ -150,25 +150,30 @@ contract Rate is IRate {
                     FEEDBACK_ON_FEEDBACK_TYPE_HASH,
                     _nonce,
                     keccak256(bytes(_infoHash)),
-                    _prevSubmiter,
+                    _prevSubmitter,
                     _service
                 )
             ),
-            _submiter,
+            _submitter,
             _v,
             _r,
             _s
         );
 
-        Feedback storage feedbackData = feedbackFeedbacks[_submiter][
-            _prevSubmiter
+        Feedback storage feedbackData = feedbackFeedbacks[_submitter][
+            _prevSubmitter
         ][_service];
 
         require(feedbackData.exists == false, "feedback already submited");
         feedbackData.info = _infoHash;
         feedbackData.exists = true;
-
-        feedbackOnfeedbackNonce[_submiter] = _nonce;
+        emit FeedbackOnFeedbackSubmited(
+            _service,
+            _prevSubmitter,
+            _submitter,
+            _infoHash
+        );
+        feedbackOnfeedbackNonce[_submitter] = _nonce;
     }
 
     function _toTypedDataHash(
