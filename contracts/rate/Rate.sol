@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-// import IAccessRestriction from "./../accessRestriction/IAccessRestriction.sol";
 import "./IRate.sol";
 import "./../accessRestriction/IAccessRestriction.sol";
 
 contract Rate is IRate {
-    IAccessRestriction public accessRestriction;
+    address public accessRestriction;
     struct Service {
         address submitter;
         string info;
@@ -19,16 +18,16 @@ contract Rate is IRate {
     }
     bytes32 public constant ADD_SERVICE_TYPE_HASH =
         keccak256(
-            "addService(uint256 nonce,string infoHash,string serviceAddress)"
+            "addService(uint256 nonce,string infoHash,address serviceAddress)"
         );
 
     bytes32 public constant FEEDBACK_TYPE_HASH =
         keccak256(
-            "feedbackToService(uint256 nonce,string infoHash,string serviceAddress)"
+            "feedbackToService(uint256 nonce,string infoHash,address serviceAddress)"
         );
     bytes32 public constant FEEDBACK_ON_FEEDBACK_TYPE_HASH =
         keccak256(
-            "feedbackToFeedback(uint256 nonce,string infoHash,string prevSubmitter,string serviceAddress)"
+            "feedbackToFeedback(uint256 nonce,string infoHash,address prevSubmitter,address serviceAddress)"
         );
 
     mapping(address => Service) public services;
@@ -40,8 +39,8 @@ contract Rate is IRate {
     mapping(address => uint256) public feedbackNonce;
     mapping(address => uint256) public feedbackOnfeedbackNonce;
 
-    constructor(address _address) {
-        IAccessRestriction accessRestriction = IAccessRestriction(_address);
+    constructor(address _address, uint _x) {
+        accessRestriction = _address;
     }
 
     modifier validAddress(address _address) {
@@ -49,7 +48,10 @@ contract Rate is IRate {
         _;
     }
     modifier isScriptOnly(address _address) {
-        require(accessRestriction.isScript(_address), "caller is not script!");
+        require(
+            IAccessRestriction(accessRestriction).isScript(_address),
+            "caller is not script!"
+        );
         _;
     }
 
@@ -186,9 +188,6 @@ contract Rate is IRate {
             );
     }
 
-    /**
-     * @dev check if the given planter is the signer of given signature or not
-     */
     function _checkSigner(
         bytes32 _domainSeparator,
         bytes32 _hashStruct,
@@ -204,9 +203,6 @@ contract Rate is IRate {
         require(signer == _signer, "invalid signature");
     }
 
-    /**
-     * @dev return domain separator
-     */
     function _buildDomainSeparator() private view returns (bytes32) {
         return
             keccak256(

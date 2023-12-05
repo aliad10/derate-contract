@@ -11,7 +11,7 @@ async function main() {
 
   await accessRestriction.waitForDeployment();
 
-  console.log('accessRestriction', accessRestriction.target);
+  console.log('accessRestriction contract address', accessRestriction.target);
 }
 
 main().catch((error) => {
