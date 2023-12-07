@@ -1,22 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-interface IRate {
-    event ServiceAdded(address service, address submitter, string info);
-    event FeedbackSubmited(
-        address service,
-        address submitter,
-        string info,
-        uint score
-    );
-    event FeedbackOnFeedbackSubmited(
-        address service,
-        address prevSubmitter,
-        address submitter,
-        string info,
-        uint score
-    );
+import "./IRate.sol";
 
+contract TestRate is IRate {
     function addService(
         uint256 _nonce,
         address _submitter,
@@ -25,7 +12,9 @@ interface IRate {
         uint8 _v,
         bytes32 _r,
         bytes32 _s
-    ) external;
+    ) external override {
+        emit ServiceAdded(_service, _submitter, _infoHash);
+    }
 
     function submitFeedbackToService(
         uint256 _nonce,
@@ -36,7 +25,9 @@ interface IRate {
         uint8 _v,
         bytes32 _r,
         bytes32 _s
-    ) external;
+    ) external override {
+        emit FeedbackSubmited(_service, _submitter, _infoHash, _score);
+    }
 
     function submitFeedbackToFeedback(
         uint256 _nonce,
@@ -48,5 +39,13 @@ interface IRate {
         uint8 _v,
         bytes32 _r,
         bytes32 _s
-    ) external;
+    ) external override {
+        emit FeedbackOnFeedbackSubmited(
+            _service,
+            _prevSubmitter,
+            _submitter,
+            _infoHash,
+            _score
+        );
+    }
 }

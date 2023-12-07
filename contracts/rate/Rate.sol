@@ -14,6 +14,7 @@ contract Rate is IRate {
 
     struct Feedback {
         string info;
+        uint score;
         bool exists;
     }
     bytes32 public constant ADD_SERVICE_TYPE_HASH =
@@ -23,11 +24,11 @@ contract Rate is IRate {
 
     bytes32 public constant FEEDBACK_TYPE_HASH =
         keccak256(
-            "feedbackToService(uint256 nonce,string infoHash,address serviceAddress)"
+            "feedbackToService(uint256 nonce,uint256 score,string infoHash,address serviceAddress)"
         );
     bytes32 public constant FEEDBACK_ON_FEEDBACK_TYPE_HASH =
         keccak256(
-            "feedbackToFeedback(uint256 nonce,string infoHash,address prevSubmitter,address serviceAddress)"
+            "feedbackToFeedback(uint256 nonce,uint256 score,string infoHash,address prevSubmitter,address serviceAddress)"
         );
 
     mapping(address => Service) public services;
@@ -39,7 +40,7 @@ contract Rate is IRate {
     mapping(address => uint256) public feedbackNonce;
     mapping(address => uint256) public feedbackOnfeedbackNonce;
 
-    constructor(address _address, uint _x) {
+    constructor(address _address) {
         accessRestriction = _address;
     }
 
@@ -95,6 +96,7 @@ contract Rate is IRate {
 
     function submitFeedbackToService(
         uint256 _nonce,
+        uint _score,
         address _submitter,
         address _service,
         string memory _infoHash,
@@ -103,6 +105,7 @@ contract Rate is IRate {
         bytes32 _s
     ) external override isScriptOnly(msg.sender) {
         require(feedbackNonce[_submitter] < _nonce, "nonce is incorrect");
+        require(_score < 101 && _score >= 0, "score out of range");
         _checkSigner(
             _buildDomainSeparator(),
             keccak256(
@@ -123,15 +126,17 @@ contract Rate is IRate {
 
         require(feedbackData.exists == false, "feedback already submited");
         feedbackData.info = _infoHash;
+        feedbackData.score = _score;
         feedbackData.exists = true;
 
         feedbackNonce[_submitter] = _nonce;
 
-        emit FeedbackSubmited(_service, _submitter, _infoHash);
+        emit FeedbackSubmited(_service, _submitter, _infoHash, _score);
     }
 
     function submitFeedbackToFeedback(
         uint256 _nonce,
+        uint _score,
         address _prevSubmitter,
         address _submitter,
         address _service,
@@ -144,6 +149,7 @@ contract Rate is IRate {
             feedbackOnfeedbackNonce[_submitter] < _nonce,
             "nonce is incorrect"
         );
+        require(_score < 101 && _score >= 0, "score out of range");
 
         _checkSigner(
             _buildDomainSeparator(),
@@ -168,12 +174,14 @@ contract Rate is IRate {
 
         require(feedbackData.exists == false, "feedback already submited");
         feedbackData.info = _infoHash;
+        feedbackData.score = _score;
         feedbackData.exists = true;
         emit FeedbackOnFeedbackSubmited(
             _service,
             _prevSubmitter,
             _submitter,
-            _infoHash
+            _infoHash,
+            _score
         );
         feedbackOnfeedbackNonce[_submitter] = _nonce;
     }
