@@ -94,6 +94,67 @@ contract Rate is IRate {
         emit ServiceAdded(_service, _submitter, _infoHash);
     }
 
+    function addServiceBatch(
+        ExecuteServiceData[] calldata _executeServiceData
+    ) external override isScriptOnly(msg.sender) {
+        bytes32 domainSeparator = _buildDomainSeparator();
+
+        unchecked {
+            for (uint256 i = 0; i < _executeServiceData.length; i++) {
+                ExecuteServiceData
+                    memory executeServiceData = _executeServiceData[i];
+
+                uint256 submitterNonce = serviceNonce[
+                    executeServiceData.submitter
+                ];
+
+                for (uint256 j = 0; j < executeServiceData.data.length; j++) {
+                    ServiceData memory serviceData = executeServiceData.data[j];
+
+                    _checkSigner(
+                        domainSeparator,
+                        keccak256(
+                            abi.encode(
+                                ADD_SERVICE_TYPE_HASH,
+                                serviceData.nonce,
+                                keccak256(bytes(serviceData.infoHash)),
+                                serviceData.service
+                            )
+                        ),
+                        executeServiceData.submitter,
+                        serviceData.v,
+                        serviceData.r,
+                        serviceData.s
+                    );
+
+                    require(
+                        submitterNonce < serviceData.nonce,
+                        "nonce is incorrect"
+                    );
+
+                    submitterNonce = serviceData.nonce;
+
+                    //-------------------------->update tree data
+                    Service storage service = services[serviceData.service];
+                    require(
+                        service.exists == false,
+                        "service already submited"
+                    );
+                    service.info = serviceData.infoHash;
+                    service.submitter = executeServiceData.submitter;
+                    service.exists = true;
+
+                    emit ServiceAdded(
+                        serviceData.service,
+                        executeServiceData.submitter,
+                        serviceData.infoHash
+                    );
+                }
+                serviceNonce[executeServiceData.submitter] = submitterNonce;
+            }
+        }
+    }
+
     function submitFeedbackToService(
         uint256 _nonce,
         uint _score,
@@ -112,6 +173,7 @@ contract Rate is IRate {
                 abi.encode(
                     FEEDBACK_TYPE_HASH,
                     _nonce,
+                    _score,
                     keccak256(bytes(_infoHash)),
                     _service
                 )
@@ -132,6 +194,83 @@ contract Rate is IRate {
         feedbackNonce[_submitter] = _nonce;
 
         emit FeedbackSubmited(_service, _submitter, _infoHash, _score);
+    }
+
+    function submitFeedbackToServiceBatch(
+        ExecuteFeedbackToServiceData[] calldata _executeFeedbackToServiceData
+    ) external override isScriptOnly(msg.sender) {
+        bytes32 domainSeparator = _buildDomainSeparator();
+
+        unchecked {
+            for (uint256 i = 0; i < _executeFeedbackToServiceData.length; i++) {
+                ExecuteFeedbackToServiceData
+                    memory executeFeedbackToServiceData = _executeFeedbackToServiceData[
+                        i
+                    ];
+
+                uint256 submitterFeedbackNonce = feedbackNonce[
+                    executeFeedbackToServiceData.submitter
+                ];
+
+                for (
+                    uint256 j = 0;
+                    j < executeFeedbackToServiceData.data.length;
+                    j++
+                ) {
+                    FeedbackToServiceData
+                        memory feedbackToServiceData = executeFeedbackToServiceData
+                            .data[j];
+
+                    _checkSigner(
+                        domainSeparator,
+                        keccak256(
+                            abi.encode(
+                                FEEDBACK_TYPE_HASH,
+                                feedbackToServiceData.nonce,
+                                feedbackToServiceData.score,
+                                keccak256(
+                                    bytes(feedbackToServiceData.infoHash)
+                                ),
+                                feedbackToServiceData.service
+                            )
+                        ),
+                        executeFeedbackToServiceData.submitter,
+                        feedbackToServiceData.v,
+                        feedbackToServiceData.r,
+                        feedbackToServiceData.s
+                    );
+
+                    require(
+                        submitterFeedbackNonce < feedbackToServiceData.nonce,
+                        "nonce is incorrect"
+                    );
+
+                    submitterFeedbackNonce = feedbackToServiceData.nonce;
+
+                    //-------------------------->update tree data
+                    Feedback storage feedbackData = serviceFeedbacks[
+                        executeFeedbackToServiceData.submitter
+                    ][feedbackToServiceData.service];
+                    require(
+                        feedbackData.exists == false,
+                        "feedback already submited"
+                    );
+                    feedbackData.info = feedbackToServiceData.infoHash;
+                    feedbackData.score = feedbackToServiceData.score;
+                    feedbackData.exists = true;
+
+                    emit FeedbackSubmited(
+                        feedbackToServiceData.service,
+                        executeFeedbackToServiceData.submitter,
+                        feedbackToServiceData.infoHash,
+                        feedbackToServiceData.score
+                    );
+                }
+                feedbackNonce[
+                    executeFeedbackToServiceData.submitter
+                ] = submitterFeedbackNonce;
+            }
+        }
     }
 
     function submitFeedbackToFeedback(
@@ -157,6 +296,7 @@ contract Rate is IRate {
                 abi.encode(
                     FEEDBACK_ON_FEEDBACK_TYPE_HASH,
                     _nonce,
+                    _score,
                     keccak256(bytes(_infoHash)),
                     _prevSubmitter,
                     _service
@@ -184,6 +324,92 @@ contract Rate is IRate {
             _score
         );
         feedbackOnfeedbackNonce[_submitter] = _nonce;
+    }
+
+    function submitFeedbackToFeedbackBatch(
+        ExecuteFeedbackToFeedbackData[] calldata _executeFeedbackToFeedbackData
+    ) external override isScriptOnly(msg.sender) {
+        bytes32 domainSeparator = _buildDomainSeparator();
+
+        unchecked {
+            for (
+                uint256 i = 0;
+                i < _executeFeedbackToFeedbackData.length;
+                i++
+            ) {
+                ExecuteFeedbackToFeedbackData
+                    memory executeFeedbackToFeedbackData = _executeFeedbackToFeedbackData[
+                        i
+                    ];
+
+                uint256 submitterFeedbackNonce = feedbackOnfeedbackNonce[
+                    executeFeedbackToFeedbackData.submitter
+                ];
+
+                for (
+                    uint256 j = 0;
+                    j < executeFeedbackToFeedbackData.data.length;
+                    j++
+                ) {
+                    FeedbackToFeedbackData
+                        memory feedbackToFeedbackData = executeFeedbackToFeedbackData
+                            .data[j];
+
+                    _checkSigner(
+                        domainSeparator,
+                        keccak256(
+                            abi.encode(
+                                FEEDBACK_ON_FEEDBACK_TYPE_HASH,
+                                feedbackToFeedbackData.nonce,
+                                feedbackToFeedbackData.score,
+                                keccak256(
+                                    bytes(feedbackToFeedbackData.infoHash)
+                                ),
+                                feedbackToFeedbackData.prevSubmitter,
+                                feedbackToFeedbackData.service
+                            )
+                        ),
+                        executeFeedbackToFeedbackData.submitter,
+                        feedbackToFeedbackData.v,
+                        feedbackToFeedbackData.r,
+                        feedbackToFeedbackData.s
+                    );
+
+                    require(
+                        submitterFeedbackNonce < feedbackToFeedbackData.nonce,
+                        "nonce is incorrect"
+                    );
+
+                    submitterFeedbackNonce = feedbackToFeedbackData.nonce;
+
+                    //-------------------------->update tree data
+
+                    Feedback storage feedbackData = feedbackFeedbacks[
+                        executeFeedbackToFeedbackData.submitter
+                    ][feedbackToFeedbackData.prevSubmitter][
+                        feedbackToFeedbackData.service
+                    ];
+
+                    require(
+                        feedbackData.exists == false,
+                        "feedback already submited"
+                    );
+                    feedbackData.info = feedbackToFeedbackData.infoHash;
+                    feedbackData.score = feedbackToFeedbackData.score;
+                    feedbackData.exists = true;
+                    emit FeedbackOnFeedbackSubmited(
+                        feedbackToFeedbackData.service,
+                        feedbackToFeedbackData.prevSubmitter,
+                        executeFeedbackToFeedbackData.submitter,
+                        feedbackToFeedbackData.infoHash,
+                        feedbackToFeedbackData.score
+                    );
+                }
+                feedbackOnfeedbackNonce[
+                    executeFeedbackToFeedbackData.submitter
+                ] = submitterFeedbackNonce;
+            }
+        }
     }
 
     function _toTypedDataHash(

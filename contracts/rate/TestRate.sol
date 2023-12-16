@@ -16,6 +16,10 @@ contract TestRate is IRate {
         emit ServiceAdded(_service, _submitter, _infoHash);
     }
 
+    function addServiceBatch(
+        ExecuteServiceData[] calldata _executeServiceData
+    ) external override {}
+
     function submitFeedbackToService(
         uint256 _nonce,
         uint _score,
@@ -28,6 +32,10 @@ contract TestRate is IRate {
     ) external override {
         emit FeedbackSubmited(_service, _submitter, _infoHash, _score);
     }
+
+    function submitFeedbackToServiceBatch(
+        ExecuteFeedbackToServiceData[] calldata _executeFeedbackToServiceData
+    ) external override {}
 
     function submitFeedbackToFeedback(
         uint256 _nonce,
@@ -48,4 +56,8 @@ contract TestRate is IRate {
             _score
         );
     }
+
+    function submitFeedbackToFeedbackBatch(
+        ExecuteFeedbackToFeedbackData[] calldata _executeFeedbackToFeedbackData
+    ) external {}
 }
